@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
+  // Ensure workspace packages are transpiled in dev
+  transpilePackages: ["@my-app/ui", "@my-app/utils", "@my-app/types"],
 };
 
 export default nextConfig;

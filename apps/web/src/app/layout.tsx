@@ -1,8 +1,9 @@
-'use client'; 
+'use client';
 
 import { ApolloProvider } from '@apollo/client';
 import client from '@/lib/apollo';
 import { Button } from '@my-app/ui';
+import './globals.css';
 
 export default function RootLayout({
   children,
@@ -14,8 +15,6 @@ export default function RootLayout({
       <body>
         <ApolloProvider client={client}>
           <main>
-            <Button label="Click Me (from shared UI)" onClick={() => alert('Button clicked!')} />
-            <hr />
             {children}
           </main>
         </ApolloProvider>
