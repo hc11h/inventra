@@ -2,6 +2,31 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input CreateUserInput {
+  email: String!
+  name: String
+}
+
+type Mutation {
+  createUser(input: CreateUserInput!): UserModel!
+  removeUser(id: Int!): UserModel!
+  updateUser(input: UpdateUserInput!): UserModel!
+}
+
 type Query {
   getHello: String!
+  user(id: Int!): UserModel
+  users: [UserModel!]!
+}
+
+input UpdateUserInput {
+  email: String
+  id: Int!
+  name: String
+}
+
+type UserModel {
+  email: String!
+  id: Int!
+  name: String
 }
