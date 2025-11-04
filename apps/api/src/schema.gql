@@ -2,6 +2,11 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type AuthPayload {
+  accessToken: String!
+  user: UserModel!
+}
+
 input CreateUserInput {
   email: String!
   name: String
@@ -9,7 +14,11 @@ input CreateUserInput {
 
 type Mutation {
   createUser(input: CreateUserInput!): UserModel!
+  forgotPassword(email: String!): Boolean!
+  login(email: String!, password: String!): AuthPayload!
+  register(email: String!, name: String, password: String!): UserModel!
   removeUser(id: Int!): UserModel!
+  resetPassword(newPassword: String!, token: String!): Boolean!
   updateUser(input: UpdateUserInput!): UserModel!
 }
 
@@ -28,5 +37,6 @@ input UpdateUserInput {
 type UserModel {
   email: String!
   id: Int!
+  isSuperAdmin: Boolean!
   name: String
 }

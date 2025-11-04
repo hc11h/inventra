@@ -1,4 +1,4 @@
-import { Args, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, Context, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { UserModel } from './models/user.model';
 import { UserService } from './user.service';
 import { CreateUserInput } from './dto/create-user.input';
@@ -15,8 +15,18 @@ export class UserResolver {
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles('ORG_ADMIN', 'ORG_MANAGER')
   @Query(() => [UserModel], { name: 'users' })
-  findAll() {
-    return this.userService.findAll();
+  findAll(@Context() ctx: any): Promise<UserModel[]> {
+    const req = ctx.req as { headers?: Record<string, any>; user?: any };
+    const user = req.user;
+    const orgHeader = req.headers?.['x-org-id'];
+    const organizationId = orgHeader ? parseInt(Array.isArray(orgHeader) ? orgHeader[0] : orgHeader) : undefined;
+    if (user?.isSuperAdmin && !organizationId) {
+      return this.userService.findAll() as unknown as Promise<UserModel[]>;
+    }
+    if (!organizationId || Number.isNaN(organizationId)) {
+      return Promise.resolve([]);
+    }
+    return this.userService.findAllForOrganization(organizationId) as unknown as Promise<UserModel[]>;
   }
 
   @UseGuards(GqlAuthGuard, RolesGuard)

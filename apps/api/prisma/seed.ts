@@ -1,4 +1,4 @@
-import { PrismaClient, OrganizationRole } from '../generated/prisma';
+import { PrismaClient, OrganizationRole } from '../generated/prisma/client';
 import { randomBytes, scryptSync } from 'crypto';
 
 const prisma = new PrismaClient();

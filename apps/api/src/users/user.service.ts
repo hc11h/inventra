@@ -9,6 +9,16 @@ export class UserService {
     return this.prismaService.client.user.findMany();
   }
 
+  findAllForOrganization(organizationId: number) {
+    return this.prismaService.client.user.findMany({
+      where: {
+        memberships: {
+          some: { organizationId },
+        },
+      },
+    });
+  }
+
   findOne(id: number) {
     return this.prismaService.client.user.findUnique({ where: { id } });
   }

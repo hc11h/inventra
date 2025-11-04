@@ -10,6 +10,9 @@ export class UserModel {
 
   @Field({ nullable: true })
   name?: string | null;
+
+  @Field()
+  isSuperAdmin: boolean;
 }
 
 

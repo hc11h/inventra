@@ -53,7 +53,6 @@ export class AuthService {
     const token = randomBytes(24).toString('hex');
     const exp = new Date(Date.now() + 1000 * 60 * 30);
     await this.prisma.client.user.update({ where: { id: user.id }, data: { passwordResetToken: token, passwordResetExp: exp } });
-    // In real app, send email with token
     return true;
   }
 
