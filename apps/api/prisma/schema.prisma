@@ -14,8 +14,223 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ==========================
+// Enums
+// ==========================
+
+enum OrganizationRole {
+  ORG_ADMIN
+  ORG_MANAGER
+  ORG_STAFF
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+enum InventoryChangeType {
+  IN // stock added (purchase, restock, return to stock)
+  OUT // stock deducted (sale, consumption)
+  ADJUST // manual or audit adjustment
+}
+
+// ==========================
+// Core Multi-tenant Entities
+// ==========================
+
 model User {
-  id    Int     @default(autoincrement()) @id
-  email String  @unique
-  name  String?
+  id                 Int            @id @default(autoincrement())
+  email              String         @unique
+  name               String?
+  isSuperAdmin       Boolean        @default(false)
+  ownedOrganizations Organization[]
+  customers          Customer[]
+
+  // Memberships to client organizations
+  memberships UserOrganizationMembership[]
+
+  // Audit relations
+  createdOrders Order[]        @relation("OrderCreatedBy")
+  inventoryLogs InventoryLog[] @relation("InventoryLogCreatedBy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model Organization {
+  id          Int    @id @default(autoincrement())
+  name        String
+  // Optional: owner user for convenience; business logic still relies on memberships
+  ownerUserId Int?
+  ownerUser   User?  @relation(fields: [ownerUserId], references: [id])
+
+  memberships   UserOrganizationMembership[]
+  suppliers     Supplier[]
+  products      Product[]
+  customers     Customer[]
+  orders        Order[]
+  inventoryLogs InventoryLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name]) // enforce unique organization names at platform level; drop if multiple same names allowed
+  @@index([ownerUserId])
+}
+
+model UserOrganizationMembership {
+  id             Int              @id @default(autoincrement())
+  userId         Int
+  organizationId Int
+  role           OrganizationRole
+
+  user         User         @relation(fields: [userId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, role])
+}
+
+// ==========================
+// Suppliers and Products
+// ==========================
+
+model Supplier {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  isActive       Boolean @default(true)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  products     Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model Product {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  supplierId     Int?
+  sku            String
+  name           String
+  description    String?
+  price          Decimal @db.Decimal(18, 4)
+  stock          Int     @default(0)
+  reorderLevel   Int     @default(0)
+  isActive       Boolean @default(true)
+
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  supplier      Supplier?      @relation(fields: [supplierId], references: [id])
+  orderItems    OrderItem[]
+  inventoryLogs InventoryLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, sku])
+  @@index([organizationId, name])
+  @@index([supplierId])
+}
+
+// ==========================
+// Customers and Orders
+// ==========================
+
+model Customer {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  userId         Int?
+  email          String
+  name           String
+  phone          String?
+  metadata       Json?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User?        @relation(fields: [userId], references: [id])
+  orders       Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, email])
+  @@unique([organizationId, userId])
+  @@index([organizationId, name])
+}
+
+model Order {
+  id              Int         @id @default(autoincrement())
+  organizationId  Int
+  customerId      Int
+  createdByUserId Int?
+  orderNumber     String
+  status          OrderStatus @default(PENDING)
+  total           Decimal     @default(0) @db.Decimal(18, 4)
+  placedAt        DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  createdBy     User?          @relation("OrderCreatedBy", fields: [createdByUserId], references: [id])
+  items         OrderItem[]
+  inventoryLogs InventoryLog[]
+
+  @@unique([organizationId, orderNumber])
+  @@index([organizationId, status])
+  @@index([customerId])
+  @@index([createdByUserId])
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  unitPrice Decimal @db.Decimal(18, 4)
+  lineTotal Decimal @db.Decimal(18, 4)
+
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([orderId, productId]) // each product once per order; drop if multiples allowed
+  @@index([orderId])
+  @@index([productId])
+}
+
+// ==========================
+// Inventory Logging
+// ==========================
+
+model InventoryLog {
+  id              Int                 @id @default(autoincrement())
+  organizationId  Int
+  productId       Int
+  orderId         Int?
+  createdByUserId Int?
+  type            InventoryChangeType
+  quantityChange  Int // positive for IN, negative for OUT/ADJUST
+  reason          String?
+  createdAt       DateTime            @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  product      Product      @relation(fields: [productId], references: [id])
+  order        Order?       @relation(fields: [orderId], references: [id])
+  createdBy    User?        @relation("InventoryLogCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([organizationId, productId])
+  @@index([orderId])
+  @@index([createdByUserId])
 }
