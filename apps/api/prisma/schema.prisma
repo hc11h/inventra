@@ -47,6 +47,11 @@ model User {
   email              String         @unique
   name               String?
   isSuperAdmin       Boolean        @default(false)
+  // Auth fields
+  passwordHash       String?
+  passwordResetToken String?
+  passwordResetExp   DateTime?
+  lastLoginAt        DateTime?
   ownedOrganizations Organization[]
   customers          Customer[]
 
